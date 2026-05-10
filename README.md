@@ -11,6 +11,10 @@ node_modules/
 ### @package.json
 
 ```json
+#삭제
+"main": "App.js"
+
+#추가
 "expo-build-properties": "~0.13.3"
 "expo-asset": "~11.0.5"
 ```

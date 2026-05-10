@@ -2,7 +2,6 @@
   "name": "fitness-tracker",
   "slug": "fitness-tracker",
   "version": "1.0.0",
-  "main": "App.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
