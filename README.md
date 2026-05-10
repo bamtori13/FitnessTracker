@@ -35,11 +35,17 @@ node_modules/
 "expo-asset"
 ```
 
-# 새로 build할 때
+# 새로 build or package 추가/삭제 등 src외 구조가 바꼈을 때
 
 ```shell
 1. android/, .expo/, npm_modules/, package-lock.json  삭제
 > npm install
 > npx expo prebuild --clean
+> eas build --profile preview --platform android
+```
+
+# build 성공 후 code만 일부 변경 후 build 할 때
+
+```shell
 > eas build --profile preview --platform android
 ```
