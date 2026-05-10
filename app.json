@@ -41,6 +41,11 @@
       ],
       "expo-asset"
     ],
-    "newArchEnabled": true
+    "newArchEnabled": true,
+    "extra": {
+      "eas": {
+        "projectId": "bce39b9a-b38a-4139-9317-b4487521c8e5"
+      }
+    }
   }
 }
