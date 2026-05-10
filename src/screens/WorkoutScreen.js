@@ -311,8 +311,10 @@ export default function WorkoutScreen() {
   }, []);
 
   useEffect(() => {
+    let alive = true;
     setLoading(true);
     getLogByDate(date).then(l => {
+      if (!alive) return;
       setLog(l);
       if (l?.exercises?.length) {
         const init = {};
@@ -320,7 +322,15 @@ export default function WorkoutScreen() {
         setCollapsed(init);
       } else { setCollapsed({}); }
       setLoading(false);
+    }).catch(err => {
+      console.warn('Failed to load workout log:', err);
+      if (alive) {
+        setLog(null);
+        setCollapsed({});
+        setLoading(false);
+      }
     });
+    return () => { alive = false; };
   }, [date]);
 
   useEffect(() => {
@@ -564,8 +574,6 @@ export default function WorkoutScreen() {
     );
   };
 
-  if (loading) return <Loading />;
-
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* 날짜 스와이프 감지 영역 (드래그 중에는 비활성) */}
@@ -605,9 +613,11 @@ export default function WorkoutScreen() {
               </TouchableOpacity>
             </View>
 
-            {!log && <Text style={s.swipeHint}>← 스와이프로 날짜 이동 →</Text>}
+            {!loading && !log && <Text style={s.swipeHint}>← 스와이프로 날짜 이동 →</Text>}
 
-            {!log ? (
+            {loading ? (
+              <Loading />
+            ) : !log ? (
               <View style={s.emptyState}>
                 <Text style={s.emptyTitle}>운동을 시작해볼까요?</Text>
                 <Text style={s.emptySub}>{fmtDate(date)} 운동을 기록합니다</Text>
