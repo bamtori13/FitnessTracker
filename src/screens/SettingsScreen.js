@@ -99,24 +99,43 @@ export default function SettingsScreen() {
       });
       if (result.canceled) return;
       const json = await FileSystem.readAsStringAsync(result.assets[0].uri);
-      const data = JSON.parse(json);
+      let data;
+      try {
+        data = JSON.parse(json);
+      } catch {
+        Alert.alert('오류', 'JSON 파일 형식이 올바르지 않습니다.');
+        return;
+      }
+      // 기본 유효성 검사
+      if (!data.exercises && !data.logs) {
+        Alert.alert('오류', '유효한 백업 파일이 아닙니다.');
+        return;
+      }
       Alert.alert(
         '데이터 복원',
-        '현재 데이터가 모두 교체됩니다. 계속하시겠습니까?',
+        `운동 종목 ${(data.exercises||[]).length}개, 기록 ${(data.logs||[]).length}일치를 복원합니다.\n현재 데이터가 모두 교체됩니다. 계속하시겠습니까?`,
         [
           { text: '취소', style: 'cancel' },
           {
             text: '복원',
             onPress: async () => {
-              await importAllData(data);
-              await reload();
-              showMsg('복원 완료!');
+              try {
+                await importAllData(data);
+                await reload();
+                // 전체 앱 상태 갱신을 위해 재시작 안내
+                Alert.alert(
+                  '복원 완료',
+                  `종목 ${(data.exercises||[]).length}개, 기록 ${(data.logs||[]).length}일이 복원됐습니다.\n앱을 완전히 종료 후 다시 열면 전체 데이터가 반영됩니다.`
+                );
+              } catch (e) {
+                Alert.alert('복원 실패', e.message);
+              }
             },
           },
         ]
       );
     } catch (e) {
-      Alert.alert('오류', '복원 중 오류가 발생했습니다: ' + e.message);
+      Alert.alert('오류', '파일을 읽는 중 오류가 발생했습니다: ' + e.message);
     }
   };
 

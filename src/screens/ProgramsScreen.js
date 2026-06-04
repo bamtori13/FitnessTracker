@@ -174,21 +174,31 @@ export default function ProgramsScreen() {
               onChangeText={setExSearch}
             />
             <FilterBtns current={exFilter} onChange={setExFilter} />
-            <ScrollView style={{ maxHeight: 240 }}>
-              {filteredEx.map(ex => {
-                const sel = formProg.exercises.includes(ex.id);
+            <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="always">
+              {/* 선택된 운동을 맨 위에 표시 */}
+              {[
+                ...filteredEx.filter(ex => formProg.exercises.includes(ex.id)),
+                ...filteredEx.filter(ex => !formProg.exercises.includes(ex.id)),
+              ].map((ex, idx, arr) => {
+                const sel     = formProg.exercises.includes(ex.id);
+                const prevSel = idx > 0 && formProg.exercises.includes(arr[idx - 1].id);
+                const showDiv = idx > 0 && !sel && prevSel; // 선택/미선택 경계선
                 return (
-                  <TouchableOpacity
-                    key={ex.id}
-                    onPress={() => toggleEx(ex.id)}
-                    style={[s.exItem, sel && s.exItemSel]}
-                  >
-                    <View style={[s.checkbox, sel && s.checkboxSel]}>
-                      {sel && <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>}
-                    </View>
-                    <Text style={s.exItemName}>{ex.name}</Text>
-                    <Chip group={ex.group} />
-                  </TouchableOpacity>
+                  <React.Fragment key={ex.id}>
+                    {showDiv && (
+                      <View style={{ height: 1, backgroundColor: C.border, marginVertical: 6 }} />
+                    )}
+                    <TouchableOpacity
+                      onPress={() => toggleEx(ex.id)}
+                      style={[s.exItem, sel && s.exItemSel]}
+                    >
+                      <View style={[s.checkbox, sel && s.checkboxSel]}>
+                        {sel && <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>}
+                      </View>
+                      <Text style={s.exItemName}>{ex.name}</Text>
+                      <Chip group={ex.group} />
+                    </TouchableOpacity>
+                  </React.Fragment>
                 );
               })}
             </ScrollView>

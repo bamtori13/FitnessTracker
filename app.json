@@ -30,22 +30,8 @@
           "enableFTS": true,
           "useSQLCipher": false
         }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "kotlinVersion": "2.0.21"
-          }
-        }
-      ],
-      "expo-asset"
+      ]
     ],
-    "newArchEnabled": true,
-    "extra": {
-      "eas": {
-        "projectId": "bce39b9a-b38a-4139-9317-b4487521c8e5"
-      }
-    }
+    "newArchEnabled": true
   }
 }

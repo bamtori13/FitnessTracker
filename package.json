@@ -2,23 +2,22 @@
   "name": "fitness-tracker",
   "slug": "fitness-tracker",
   "version": "1.0.0",
+  "main": "App.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "expo": "~52.0.0",
+    "expo-sqlite": "~15.1.2",
+    "expo-file-system": "~18.0.7",
+    "expo-document-picker": "~12.0.2",
+    "expo-sharing": "~12.0.1",
     "@react-native-community/datetimepicker": "8.2.0",
     "@react-native-picker/picker": "2.9.0",
-    "expo": "~52.0.0",
-    "expo-asset": "~11.0.5",
-    "expo-document-picker": "~12.0.2",
-    "expo-file-system": "~18.0.7",
-    "expo-sharing": "~12.0.1",
-    "expo-sqlite": "~15.1.4",
     "react": "18.3.1",
-    "react-native": "0.76.5",
-    "expo-build-properties": "~0.13.3"
+    "react-native": "0.76.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0"

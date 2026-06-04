@@ -36,6 +36,9 @@ async function initSchema(db) {
       log_date TEXT NOT NULL,
       exercise_id TEXT NOT NULL,
       position INTEGER DEFAULT 0,
+      cardio_distance_m REAL DEFAULT 0,
+      cardio_speed_kmh REAL DEFAULT 0,
+      cardio_calories INTEGER DEFAULT 0,
       FOREIGN KEY (log_date) REFERENCES workout_logs(date)
     );
     CREATE TABLE IF NOT EXISTS sets (
@@ -53,6 +56,9 @@ async function initSchema(db) {
   // ALTER TABLE — 이미 있으면 에러 무시
   try { await db.execAsync(`ALTER TABLE exercises ADD COLUMN input_type TEXT DEFAULT 'weight_reps';`); } catch {}
   try { await db.execAsync(`ALTER TABLE sets ADD COLUMN duration_sec INTEGER DEFAULT 0;`); } catch {}
+  try { await db.execAsync(`ALTER TABLE log_exercises ADD COLUMN cardio_distance_m REAL DEFAULT 0;`); } catch {}
+  try { await db.execAsync(`ALTER TABLE log_exercises ADD COLUMN cardio_speed_kmh REAL DEFAULT 0;`); } catch {}
+  try { await db.execAsync(`ALTER TABLE log_exercises ADD COLUMN cardio_calories INTEGER DEFAULT 0;`); } catch {}
 
   const count = await db.getFirstAsync('SELECT COUNT(*) as c FROM exercises');
   if (count.c === 0) await seedExercises(db);
@@ -173,6 +179,11 @@ export async function getLogByDate(date) {
     );
     exercises.push({
       id: le.id, exerciseId: le.exercise_id,
+      cardio: {
+        distanceM:  le.cardio_distance_m  || 0,
+        speedKmh:   le.cardio_speed_kmh   || 0,
+        calories:   le.cardio_calories    || 0,
+      },
       sets: sets.map(s => ({
         id: s.id, weight: s.weight, reps: s.reps,
         durationSec: s.duration_sec || 0, done: s.done === 1,
@@ -234,6 +245,15 @@ export async function removeExerciseFromLog(logExerciseId) {
   const db = await getDB();
   await db.runAsync('DELETE FROM sets WHERE log_exercise_id=?', [logExerciseId]);
   await db.runAsync('DELETE FROM log_exercises WHERE id=?', [logExerciseId]);
+}
+
+// 유산소 추가 정보 저장
+export async function updateCardioInfo(logExerciseId, { distanceM = 0, speedKmh = 0, calories = 0 }) {
+  const db = await getDB();
+  await db.runAsync(
+    'UPDATE log_exercises SET cardio_distance_m=?, cardio_speed_kmh=?, cardio_calories=? WHERE id=?',
+    [distanceM, speedKmh, calories, logExerciseId]
+  );
 }
 
 export async function reorderLogExercises(orderedIds) {
@@ -471,34 +491,109 @@ export async function getGroupLastBest(group, exerciseIds, beforeDate) {
 
 export async function exportAllData() {
   const db = await getDB();
+  // 각 테이블을 컬럼명 포함해서 명시적으로 조회
+  const exercises    = await db.getAllAsync(
+    'SELECT id, name, grp, equipment, input_type FROM exercises'
+  );
+  const programs     = await db.getAllAsync(
+    'SELECT id, name, exercise_ids FROM programs'
+  );
+  const logs         = await db.getAllAsync(
+    'SELECT id, date, notes FROM workout_logs'
+  );
+  const logExercises = await db.getAllAsync(
+    'SELECT id, log_date, exercise_id, position, cardio_distance_m, cardio_speed_kmh, cardio_calories FROM log_exercises'
+  );
+  const sets         = await db.getAllAsync(
+    'SELECT id, log_exercise_id, position, weight, reps, duration_sec, done FROM sets'
+  );
   return {
-    exercises:    await db.getAllAsync('SELECT * FROM exercises'),
-    programs:     await db.getAllAsync('SELECT * FROM programs'),
-    logs:         await db.getAllAsync('SELECT * FROM workout_logs'),
-    logExercises: await db.getAllAsync('SELECT * FROM log_exercises'),
-    sets:         await db.getAllAsync('SELECT * FROM sets'),
-    exportedAt:   new Date().toISOString(),
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    exercises,
+    programs,
+    logs,
+    logExercises,
+    sets,
   };
 }
 
 export async function importAllData(data) {
   const db = await getDB();
   await db.withTransactionAsync(async () => {
+    // 기존 데이터 전체 삭제
     await db.runAsync('DELETE FROM sets');
     await db.runAsync('DELETE FROM log_exercises');
     await db.runAsync('DELETE FROM workout_logs');
     await db.runAsync('DELETE FROM programs');
     await db.runAsync('DELETE FROM exercises');
-    for (const r of (data.exercises || []))
-      await db.runAsync('INSERT INTO exercises VALUES (?,?,?,?,?)', [r.id, r.name, r.grp, r.equipment, r.input_type || 'weight_reps']);
-    for (const r of (data.programs || []))
-      await db.runAsync('INSERT INTO programs VALUES (?,?,?)', [r.id, r.name, r.exercise_ids]);
-    for (const r of (data.logs || []))
-      await db.runAsync('INSERT INTO workout_logs VALUES (?,?,?)', [r.id, r.date, r.notes]);
-    for (const r of (data.logExercises || []))
-      await db.runAsync('INSERT INTO log_exercises VALUES (?,?,?,?)', [r.id, r.log_date, r.exercise_id, r.position]);
-    for (const r of (data.sets || []))
-      await db.runAsync('INSERT INTO sets VALUES (?,?,?,?,?,?,?)', [r.id, r.log_exercise_id, r.position, r.weight, r.reps, r.duration_sec || 0, r.done]);
+
+    // exercises — 사용자 추가 종목 포함 전체 복원
+    for (const r of (data.exercises || [])) {
+      await db.runAsync(
+        'INSERT OR REPLACE INTO exercises (id, name, grp, equipment, input_type) VALUES (?,?,?,?,?)',
+        [
+          r.id,
+          r.name,
+          r.grp   || r.group || 'chest',
+          r.equipment || r.eq || '기타',
+          r.input_type || r.inputType || 'weight_reps',
+        ]
+      );
+    }
+
+    // programs
+    for (const r of (data.programs || [])) {
+      await db.runAsync(
+        'INSERT OR REPLACE INTO programs (id, name, exercise_ids) VALUES (?,?,?)',
+        [r.id, r.name, r.exercise_ids || JSON.stringify(r.exercises || [])]
+      );
+    }
+
+    // workout_logs
+    for (const r of (data.logs || [])) {
+      await db.runAsync(
+        'INSERT OR REPLACE INTO workout_logs (id, date, notes) VALUES (?,?,?)',
+        [r.id, r.date, r.notes || '']
+      );
+    }
+
+    // log_exercises — cardio 컬럼 포함
+    for (const r of (data.logExercises || [])) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO log_exercises
+           (id, log_date, exercise_id, position,
+            cardio_distance_m, cardio_speed_kmh, cardio_calories)
+         VALUES (?,?,?,?,?,?,?)`,
+        [
+          r.id,
+          r.log_date,
+          r.exercise_id,
+          r.position || 0,
+          r.cardio_distance_m || 0,
+          r.cardio_speed_kmh  || 0,
+          r.cardio_calories   || 0,
+        ]
+      );
+    }
+
+    // sets
+    for (const r of (data.sets || [])) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO sets
+           (id, log_exercise_id, position, weight, reps, duration_sec, done)
+         VALUES (?,?,?,?,?,?,?)`,
+        [
+          r.id,
+          r.log_exercise_id,
+          r.position     || 0,
+          r.weight       || 0,
+          r.reps         || 0,
+          r.duration_sec || 0,
+          r.done         || 0,
+        ]
+      );
+    }
   });
 }
 

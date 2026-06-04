@@ -1,3 +1,21 @@
-.expo/
-android/
+# Node
 node_modules/
+npm-debug.log
+yarn-error.log
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# iOS
+ios/build/
+
+# MacOS
+.DS_Store
